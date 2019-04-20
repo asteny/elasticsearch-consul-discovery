@@ -46,6 +46,8 @@ package consul.model;
  * Created by Jigar Joshi on 8/9/15.
  */
 
+import java.util.Objects;
+
 /**
  * Consul discovery result class.
  */
@@ -72,27 +74,24 @@ public final class DiscoveryResult {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof DiscoveryResult)) {
             return false;
         }
-
         DiscoveryResult that = (DiscoveryResult) o;
-
-        if (port != that.port) {
-            return false;
-        }
-        return !(ip != null ? !ip.equals(that.ip) : that.ip != null);
+        return port == that.port &&
+            Objects.equals(ip, that.ip);
     }
 
     @Override
     public int hashCode() {
-        int result = ip != null ? ip.hashCode() : 0;
-        result = 31 * result + port;
-        return result;
+        return Objects.hash(ip, port);
     }
 
     @Override
     public String toString() {
-        return "DiscoveryResult{" + "ip='" + ip + '\'' + ", port=" + port + '}';
+        return "DiscoveryResult{" +
+            "ip='" + ip + '\'' +
+            ", port=" + port +
+            '}';
     }
 }
