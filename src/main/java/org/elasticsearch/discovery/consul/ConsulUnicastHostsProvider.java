@@ -45,102 +45,113 @@ package org.elasticsearch.discovery.consul;
  * Created by Jigar Joshi on 8/9/15.
  */
 
-import static java.util.Collections.emptyList;
-import org.elasticsearch.Version;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.component.AbstractComponent;
+import consul.model.DiscoveryResult;
+import consul.service.ConsulService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.network.InetAddresses;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.discovery.zen.UnicastHostsProvider;
 import org.elasticsearch.transport.TransportService;
+
 import java.io.IOException;
-import java.util.ArrayList;
+import java.security.PrivilegedActionException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import consul.model.DiscoveryResult;
-import consul.service.ConsulService;
+import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
 
 /**
  * Consul unicast host provider class.
  */
-public class ConsulUnicastHostsProvider extends AbstractComponent implements UnicastHostsProvider {
+public class ConsulUnicastHostsProvider implements UnicastHostsProvider {
+
+    private static Logger logger = LogManager.getLogger(ConsulUnicastHostsProvider.class);
 
     public static final Setting<String> CONSUL_LOCALWSHOST = Setting.simpleString("discovery.consul.local-ws-host",
-            Property.NodeScope);
+        Property.NodeScope);
     public static final Setting<Integer> CONSUL_LOCALWSPORT = Setting.intSetting("discovery.consul.local-ws-port", 8500,
-            Property.NodeScope);
+        Property.NodeScope);
     public static final Setting<List<String>> CONSUL_SERVICENAMES = Setting.listSetting("discovery.consul.service-names",
-            emptyList(), Function.identity(), Property.NodeScope);
+        emptyList(), Function.identity(), Property.NodeScope);
     public static final Setting<String> CONSUL_TAG = Setting.simpleString("discovery.consul.tag", Property.NodeScope);
     public static final Setting<Boolean> CONSUL_HEALTHY = Setting.boolSetting("discovery.consul.healthy", true,
-            Property.NodeScope);
+        Property.NodeScope);
 
     private final TransportService transportService;
+    private final ConsulService consulService;
     private final Set<String> consulServiceNames;
-    private final String consulAgentLocalWebServiceHost;
-    private final int consulAgentLocalWebServicePort;
-    private final String tag;
-    private final boolean healthy;
 
     public ConsulUnicastHostsProvider(Settings settings, TransportService transportService) {
         this.transportService = transportService;
-
-        this.consulServiceNames = new HashSet<>();
-        for (String serviceName : CONSUL_SERVICENAMES.get(settings)) {
-            this.consulServiceNames.add(serviceName);
-        }
-
-        this.consulAgentLocalWebServiceHost = CONSUL_LOCALWSHOST.get(settings);
-        this.consulAgentLocalWebServicePort = CONSUL_LOCALWSPORT.get(settings);
-        this.tag = CONSUL_TAG.get(settings);
-        this.healthy = CONSUL_HEALTHY.get(settings);
+        this.consulServiceNames = new HashSet<>(CONSUL_SERVICENAMES.get(settings));
+        this.consulService = new ConsulService(
+            CONSUL_LOCALWSHOST.get(settings),
+            CONSUL_LOCALWSPORT.get(settings),
+            CONSUL_TAG.get(settings),
+            CONSUL_HEALTHY.get(settings));
     }
 
     @Override
     public List<TransportAddress> buildDynamicHosts(HostsResolver hostsResolver) {
         logger.debug("Discovering nodes");
-
-        List<TransportAddress> discoNodes = new ArrayList<TransportAddress>();
-        Set<DiscoveryResult> consulDiscoveryResults = null;
-
-        try {
-            logger.debug("Starting discovery request");
-            final long startTime = System.currentTimeMillis();
-            consulDiscoveryResults = new ConsulService(this.consulAgentLocalWebServiceHost,
-                    this.consulAgentLocalWebServicePort, this.tag, this.healthy).discoverNodes(this.consulServiceNames);
-            logger.debug("Discovered {} nodes", (consulDiscoveryResults != null ? consulDiscoveryResults.size() : 0));
-            logger.debug("{} ms it took for discovery request", (System.currentTimeMillis() - startTime));
-        } catch (IOException ioException) {
-            logger.error("Failed to discover nodes, failed in making consul based " + "discovery", ioException);
-        } catch (java.security.PrivilegedActionException privilegeException){
-            logger.error("Failed to discover nodes, due to security privileges", privilegeException);
-        }
-
-        if (consulDiscoveryResults != null) {
-            consulDiscoveryResults.stream().forEach(discoveryResult -> {
-                String address;
-                if (discoveryResult.getIp().contains(":")) {
-                    address = "[" + discoveryResult.getIp() + "]:" + discoveryResult.getPort();
-                } else {
-                    address = discoveryResult.getIp() + ":" + discoveryResult.getPort();
-                }
-                try {
-                    TransportAddress[] addresses = transportService.addressesFromString(address, 1);
-                    logger.debug("Adding {}, transport_address {}", address, addresses[0]);
-                    discoNodes.add(addresses[0]);
-
-                } catch (Exception e) {
-                    logger.warn("Failed to add {}, address {}", e, address);
-                }
-            });
-        }
+        List<TransportAddress> discoNodes = getConsulServices().stream()
+            .map(ConsulUnicastHostsProvider::buildProperAddress)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .map(this::createAddress)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.toList());
 
         logger.debug("Using Consul based dynamic discovery nodes {}", discoNodes);
 
         return discoNodes;
+    }
+
+    static Optional<String> buildProperAddress(DiscoveryResult dr) {
+        try {
+            String properAddress = InetAddresses.toUriString(InetAddresses.forString(dr.getIp()));
+            return Optional.of(String.format("%s:%d", properAddress, dr.getPort()));
+        } catch (Exception e) {
+            logger.error("Can't convert {}:{} to proper address string", dr.getIp(), dr.getPort(), e);
+            return Optional.empty();
+        }
+    }
+
+    private Optional<TransportAddress> createAddress(String address) {
+        try {
+            TransportAddress transportAddress = transportService.addressesFromString(address, 1)[0];
+            logger.debug("Created transport_address {} from {}", transportAddress, address);
+            return Optional.of(transportAddress);
+        } catch (Exception e) {
+            logger.warn("Failed to add address {}", address, e);
+            return Optional.empty();
+        }
+    }
+
+    private Set<DiscoveryResult> getConsulServices() {
+        try {
+            logger.debug("Starting discovery request");
+            long startTime = System.currentTimeMillis();
+            Set<DiscoveryResult> discoveryResults = consulService.discoverNodes(consulServiceNames);
+
+            logger.debug("Discovered {} nodes", (discoveryResults != null ? discoveryResults.size() : 0));
+            logger.debug("{} ms it took for discovery request", (System.currentTimeMillis() - startTime));
+            return discoveryResults;
+        } catch (IOException ioException) {
+            logger.error("Failed to discover nodes, failed in making consul based discovery", ioException);
+        } catch (PrivilegedActionException privilegeException) {
+            logger.error("Failed to discover nodes, due to security privileges", privilegeException);
+        }
+        return Collections.emptySet();
     }
 }

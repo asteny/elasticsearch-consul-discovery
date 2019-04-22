@@ -46,7 +46,9 @@ package consul.model.health;
  * Created by Jigar Joshi on 8/9/15.
  */
 
-import com.google.gson.annotations.*;
+import com.google.gson.annotations.SerializedName;
+
+import java.util.Objects;
 
 /**
  * Consul node class.
@@ -79,22 +81,24 @@ public class Node {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Node)) {
             return false;
         }
-
-        Node node = (Node) o;
-
-        if (address != null ? !address.equals(node.address) : node.address != null) {
-            return false;
-        }
-        return !(this.node != null ? !this.node.equals(node.node) : node.node != null);
+        Node node1 = (Node) o;
+        return Objects.equals(address, node1.address) &&
+            Objects.equals(node, node1.node);
     }
 
     @Override
     public int hashCode() {
-        int result = address != null ? address.hashCode() : 0;
-        result = 31 * result + (node != null ? node.hashCode() : 0);
-        return result;
+        return Objects.hash(address, node);
+    }
+
+    @Override
+    public String toString() {
+        return "Node{" +
+            "address='" + address + '\'' +
+            ", node='" + node + '\'' +
+            '}';
     }
 }

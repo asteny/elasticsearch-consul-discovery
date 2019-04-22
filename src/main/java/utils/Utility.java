@@ -45,9 +45,14 @@ package utils;
  * Created by Jigar Joshi on 8/9/15.
  */
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
 
 /**
  * Utility class.
@@ -62,43 +67,20 @@ public class Utility {
      * @throws java.security.PrivilegedActionException when security issues
      */
     public static String readUrl(String urlString) throws IOException, java.security.PrivilegedActionException {
-        StringBuffer result = new StringBuffer();
-        BufferedReader br = null;
-        InputStream inputStream = null;
-        try {
-            URL url = new URL(urlString);
-            URLConnection urlConnection = url.openConnection();
-            inputStream = (InputStream) java.security.AccessController.doPrivileged(
-                    new java.security.PrivilegedExceptionAction<InputStream>() {
-                        @Override
-                        public InputStream run() throws IOException{
-                            return urlConnection.getInputStream();
-                        }
-                    }
-            );
-            br = new BufferedReader(new InputStreamReader(inputStream));
+        StringBuilder result = new StringBuilder();
+        URL url = new URL(urlString);
+        URLConnection urlConnection = url.openConnection();
+
+        try (InputStream inputStream = AccessController
+            .doPrivileged((PrivilegedExceptionAction<InputStream>) urlConnection::getInputStream);
+             BufferedReader br = new BufferedReader(new InputStreamReader(inputStream))) {
+
             String line;
             while ((line = br.readLine()) != null) {
                 result.append(line);
             }
-        } finally {
-            closeQuitely(inputStream);
-            closeQuitely(br);
-        }
-        return result.toString();
-    }
 
-    /**
-     * Closes closeable resource quitely, null safe and any exception raised is ignored.
-     *
-     * @param closeable closeable to close
-     */
-    public static void closeQuitely(Closeable closeable) {
-        if (closeable != null) {
-            try {
-                closeable.close();
-            } catch (Exception ignore) {
-            }
+            return result.toString();
         }
     }
 }

@@ -55,6 +55,7 @@ import org.elasticsearch.discovery.zen.UnicastHostsProvider;
 import org.elasticsearch.plugins.DiscoveryPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.TransportService;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -78,20 +79,18 @@ public class ConsulDiscoveryPlugin extends Plugin implements DiscoveryPlugin {
     public Map<String, Supplier<UnicastHostsProvider>> getZenHostsProviders(TransportService transportService,
                                                                             NetworkService networkService) {
         return Collections.singletonMap(
-                "consul",
-                () -> {
-                    return new ConsulUnicastHostsProvider(settings, transportService);
-                });
+            "consul",
+            () -> new ConsulUnicastHostsProvider(settings, transportService));
     }
 
     @Override
     public List<Setting<?>> getSettings() {
         return Arrays.asList(
-                ConsulUnicastHostsProvider.CONSUL_LOCALWSPORT,
-                ConsulUnicastHostsProvider.CONSUL_LOCALWSHOST,
-                ConsulUnicastHostsProvider.CONSUL_SERVICENAMES,
-                ConsulUnicastHostsProvider.CONSUL_TAG,
-                ConsulUnicastHostsProvider.CONSUL_HEALTHY
+            ConsulUnicastHostsProvider.CONSUL_LOCALWSPORT,
+            ConsulUnicastHostsProvider.CONSUL_LOCALWSHOST,
+            ConsulUnicastHostsProvider.CONSUL_SERVICENAMES,
+            ConsulUnicastHostsProvider.CONSUL_TAG,
+            ConsulUnicastHostsProvider.CONSUL_HEALTHY
         );
     }
 }

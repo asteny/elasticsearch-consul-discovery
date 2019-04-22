@@ -47,8 +47,10 @@ package consul.model.health;
  */
 
 import com.google.gson.annotations.SerializedName;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Consul service class.
@@ -77,11 +79,11 @@ public class Service {
         this.address = address;
     }
 
-    public String getID() {
+    public String getId() {
         return id;
     }
 
-    public void setID(String id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -114,38 +116,30 @@ public class Service {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Service)) {
             return false;
         }
-
-        Service service = (Service) o;
-
-        if (address != null ? !address.equals(service.address) : service.address != null) {
-            return false;
-        }
-        if (id != null ? !id.equals(service.id) : service.id != null) {
-            return false;
-        }
-        if (port != null ? !port.equals(service.port) : service.port != null) {
-            return false;
-        }
-        if (this.service != null ? !this.service.equals(service.service) : service.service != null) {
-            return false;
-        }
-        if (tags != null ? !tags.equals(service.tags) : service.tags != null) {
-            return false;
-        }
-
-        return true;
+        Service service1 = (Service) o;
+        return Objects.equals(address, service1.address) &&
+            Objects.equals(id, service1.id) &&
+            Objects.equals(port, service1.port) &&
+            Objects.equals(service, service1.service) &&
+            Objects.equals(tags, service1.tags);
     }
 
     @Override
     public int hashCode() {
-        int result = address != null ? address.hashCode() : 0;
-        result = 31 * result + (id != null ? id.hashCode() : 0);
-        result = 31 * result + (port != null ? port.hashCode() : 0);
-        result = 31 * result + (service != null ? service.hashCode() : 0);
-        result = 31 * result + (tags != null ? tags.hashCode() : 0);
-        return result;
+        return Objects.hash(address, id, port, service, tags);
+    }
+
+    @Override
+    public String toString() {
+        return "Service{" +
+            "address='" + address + '\'' +
+            ", id='" + id + '\'' +
+            ", port=" + port +
+            ", service='" + service + '\'' +
+            ", tags=" + tags +
+            '}';
     }
 }

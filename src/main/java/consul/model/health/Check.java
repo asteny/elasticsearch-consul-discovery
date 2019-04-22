@@ -46,7 +46,9 @@ package consul.model.health;
  * Created by Jigar Joshi on 8/9/15.
  */
 
-import com.google.gson.annotations.*;
+import com.google.gson.annotations.SerializedName;
+
+import java.util.Objects;
 
 /**
  * Consul check class.
@@ -145,50 +147,36 @@ public class Check {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Check)) {
             return false;
         }
-
         Check check = (Check) o;
-
-        if (checkID != null ? !checkID.equals(check.checkID) : check.checkID != null) {
-            return false;
-        }
-        if (name != null ? !name.equals(check.name) : check.name != null) {
-            return false;
-        }
-        if (node != null ? !node.equals(check.node) : check.node != null) {
-            return false;
-        }
-        if (notes != null ? !notes.equals(check.notes) : check.notes != null) {
-            return false;
-        }
-        if (output != null ? !output.equals(check.output) : check.output != null) {
-            return false;
-        }
-        if (serviceID != null ? !serviceID.equals(check.serviceID) : check.serviceID != null) {
-            return false;
-        }
-        if (serviceName != null ? !serviceName.equals(check.serviceName) : check.serviceName != null) {
-            return false;
-        }
-        if (status != null ? !status.equals(check.status) : check.status != null) {
-            return false;
-        }
-
-        return true;
+        return Objects.equals(checkID, check.checkID) &&
+            Objects.equals(name, check.name) &&
+            Objects.equals(node, check.node) &&
+            Objects.equals(notes, check.notes) &&
+            Objects.equals(output, check.output) &&
+            Objects.equals(serviceID, check.serviceID) &&
+            Objects.equals(serviceName, check.serviceName) &&
+            Objects.equals(status, check.status);
     }
 
     @Override
     public int hashCode() {
-        int result = checkID != null ? checkID.hashCode() : 0;
-        result = 31 * result + (name != null ? name.hashCode() : 0);
-        result = 31 * result + (node != null ? node.hashCode() : 0);
-        result = 31 * result + (notes != null ? notes.hashCode() : 0);
-        result = 31 * result + (output != null ? output.hashCode() : 0);
-        result = 31 * result + (serviceID != null ? serviceID.hashCode() : 0);
-        result = 31 * result + (serviceName != null ? serviceName.hashCode() : 0);
-        result = 31 * result + (status != null ? status.hashCode() : 0);
-        return result;
+        return Objects.hash(checkID, name, node, notes, output, serviceID, serviceName, status);
+    }
+
+    @Override
+    public String toString() {
+        return "Check{" +
+            "checkID='" + checkID + '\'' +
+            ", name='" + name + '\'' +
+            ", node='" + node + '\'' +
+            ", notes='" + notes + '\'' +
+            ", output='" + output + '\'' +
+            ", serviceID='" + serviceID + '\'' +
+            ", serviceName='" + serviceName + '\'' +
+            ", status='" + status + '\'' +
+            '}';
     }
 }

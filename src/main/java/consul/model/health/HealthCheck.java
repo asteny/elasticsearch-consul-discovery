@@ -47,8 +47,10 @@ package consul.model.health;
  */
 
 import com.google.gson.annotations.SerializedName;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Consul health check class.
@@ -58,10 +60,10 @@ public class HealthCheck {
     private List<Check> checks = new ArrayList<>();
 
     @SerializedName("Node")
-    private consul.model.health.Node node;
+    private Node node;
 
     @SerializedName("Service")
-    private consul.model.health.Service service;
+    private Service service;
 
     public List<Check> getChecks() {
         return checks;
@@ -71,19 +73,19 @@ public class HealthCheck {
         this.checks = checks;
     }
 
-    public consul.model.health.Node getNode() {
+    public Node getNode() {
         return node;
     }
 
-    public void setNode(consul.model.health.Node node) {
+    public void setNode(Node node) {
         this.node = node;
     }
 
-    public consul.model.health.Service getService() {
+    public Service getService() {
         return service;
     }
 
-    public void setService(consul.model.health.Service service) {
+    public void setService(Service service) {
         this.service = service;
     }
 
@@ -92,30 +94,26 @@ public class HealthCheck {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof HealthCheck)) {
             return false;
         }
-
         HealthCheck that = (HealthCheck) o;
-
-        if (checks != null ? !checks.equals(that.checks) : that.checks != null) {
-            return false;
-        }
-        if (node != null ? !node.equals(that.node) : that.node != null) {
-            return false;
-        }
-        if (service != null ? !service.equals(that.service) : that.service != null) {
-            return false;
-        }
-
-        return true;
+        return Objects.equals(checks, that.checks) &&
+            Objects.equals(node, that.node) &&
+            Objects.equals(service, that.service);
     }
 
     @Override
     public int hashCode() {
-        int result = checks != null ? checks.hashCode() : 0;
-        result = 31 * result + (node != null ? node.hashCode() : 0);
-        result = 31 * result + (service != null ? service.hashCode() : 0);
-        return result;
+        return Objects.hash(checks, node, service);
+    }
+
+    @Override
+    public String toString() {
+        return "HealthCheck{" +
+            "checks=" + checks +
+            ", node=" + node +
+            ", service=" + service +
+            '}';
     }
 }

@@ -46,22 +46,25 @@ package consul.service;
  * Created by Jigar Joshi on 8/9/15.
  */
 
-import com.google.gson.Gson;
+
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.google.gson.Gson;
 import consul.model.DiscoveryResult;
 import consul.model.health.HealthCheck;
 import utils.Utility;
-
 /**
  * Uses consul's REST API and exposes certain functionality.
  */
 public final class ConsulService {
     private static final String CONSUL_HEALTH_CHECK_API_ENDPOINT_TEMPLATE = "%s:%d/v1/health/service/%s?%s";
+    private static final String HTTP_LOCALHOST = "http://localhost";
 
     private final String consulAgentLocalHostname;
     private final int consulAgentLocalWebServicePort;
@@ -70,16 +73,16 @@ public final class ConsulService {
 
     /**
      * @param consulHost host where the consul agent on node exposes HTTP API, by default
-     *                   it is http://localhost
+     * it is http://localhost
      * @param consulPort port where the consul agent on node exposes HTTP API, by default
-     *                   it is 8500
-     * @param tag        if not null it will filter query on the tags
-     * @param healthy    [true|false] (default: true) determines if service should be healthy
-     *                   to be discovered
+     * it is 8500
+     * @param tag if not null it will filter query on the tags
+     * @param healthy [true|false] (default: true) determines if service should be healthy
+     * to be discovered
      */
-    public ConsulService(final String consulHost, final int consulPort, final String tag, final boolean healthy) {
+    public ConsulService(String consulHost, int consulPort, String tag, boolean healthy) {
         this.consulAgentLocalWebServicePort = consulPort;
-        this.consulAgentLocalHostname = consulHost.isEmpty() ? "http://localhost" : consulHost;
+        this.consulAgentLocalHostname = consulHost.isEmpty() ? HTTP_LOCALHOST : consulHost;
         this.tag = tag;
         this.healthy = healthy;
     }
@@ -99,21 +102,15 @@ public final class ConsulService {
      * @param serviceNames Consul service names given for discovery
      * @return the IPs and port detail of nodes for given serviceName
      * @throws IOException when communication with Consul fails
-     * @throws java.security.PrivilegedActionException when security issues
+     * @throws PrivilegedActionException when security issues
      */
-    public Set<DiscoveryResult> discoverNodes(Set<String> serviceNames) throws
-            IOException, java.security.PrivilegedActionException {
+    public Set<DiscoveryResult> discoverNodes(Set<String> serviceNames) throws IOException, PrivilegedActionException {
         Set<DiscoveryResult> result = new HashSet<>();
         for (String serviceName : serviceNames) {
             String consulServiceHealthEndPoint = getConsulHealthCheckApiUrl(serviceName);
-            final String apiResponse = Utility.readUrl(consulServiceHealthEndPoint);
-            HealthCheck[] healthChecks = (HealthCheck[]) AccessController.doPrivileged(
-                    new PrivilegedAction<HealthCheck[]>() {
-                        @Override
-                        public HealthCheck[] run() {
-                            return new Gson().fromJson(apiResponse, HealthCheck[].class);
-                        }
-                    }
+            String apiResponse = Utility.readUrl(consulServiceHealthEndPoint);
+            HealthCheck[] healthChecks = AccessController.doPrivileged(
+                (PrivilegedAction<HealthCheck[]>) () -> new Gson().fromJson(apiResponse, HealthCheck[].class)
             );
             Arrays.stream(healthChecks).forEach(healthCheck -> {
                 String ip = healthCheck.getService().getAddress();
@@ -128,14 +125,14 @@ public final class ConsulService {
     }
 
 
-    private final String getConsulHealthCheckApiUrl(final String serviceName) {
-        final StringBuffer queryParam = new StringBuffer(String.format("passing=%b", this.healthy));
+    private String getConsulHealthCheckApiUrl(String serviceName) {
+        final StringBuilder queryParam = new StringBuilder(String.format("passing=%b", this.healthy));
         if ((this.tag != null) && (!this.tag.equals(""))) {
             queryParam.append("&tag=");
             queryParam.append(tag.trim());
         }
         return String.format(CONSUL_HEALTH_CHECK_API_ENDPOINT_TEMPLATE,
-                consulAgentLocalHostname, consulAgentLocalWebServicePort, serviceName,
-                queryParam.toString());
+            consulAgentLocalHostname, consulAgentLocalWebServicePort, serviceName,
+            queryParam.toString());
     }
 }
